@@ -45,7 +45,6 @@ export default {
       } else {
         this.$refs.text.innerHTML = this.$refs.text.innerHTML.slice(0, -2) + newItem;
       }    
-      this.$refs.text.children[this.$refs.text.children.length - 1].focus()
     }
   }
 }
