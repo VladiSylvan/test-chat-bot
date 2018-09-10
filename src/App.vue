@@ -2,14 +2,16 @@
   <div id="app">
     <div class="test"
          @keyup="showSelect($event)"
+         @keydown="keyPress($event)"
          ref="text"
          contenteditable="true">
     </div>
     <div ref="menu"
-         @keyup="showSelect($event)"
+         tabindex="0"
          v-show="showMenu"
+         @keydown="keyPress($event)"
          class="item-list"
-         :style="{'left': dropDownCoordinates.left + 'px', 'top': dropDownCoordinates.top + 'px'}"
+         :style="{'left': dropDownCoordinates.left + 'px', 'top': dropDownCoordinates.top + 20 + 'px'}"
          contenteditable="false">
       <ul>
         <li v-for="item in data"
@@ -48,44 +50,22 @@ export default {
   mounted () {
     if (window.localStorage.text) {
       this.$refs.text.innerText = window.localStorage.text
-      let newText = this.$refs.text.innerHTML
-      let regex = /({{[a-zA-Z0-9]+}}|{{\S*\s+(\S+)}})/g
-      let item = newText.match(regex);
-      item.forEach((el) => {
-        let result = this.data.filter(obj => {
-        return obj.el == el.slice(2, -2)
+      let regex = /({{[a-zA-Z0-9]+}}|{{\S*\s+\S+}})/
+      let textArray = []
+      textArray = this.$refs.text.innerHTML.split(regex)
+      textArray.forEach((el, index) => {
+        this.data.filter(obj => {
+          if(obj.el === el.slice(2, -2)) {
+            let newItem = '<span contenteditable="false" class="' + obj.type + '">' + el + '</span>'
+            textArray[index] = newItem
+          }
         })
-        let newItem = '&nbsp<span contenteditable="false" class="' + result[0].type + '">' + el + '</span>&nbsp;'
-        let regex1 =  new RegExp('\([^>]' + el + ')|(^' + el + ')' );
-        this.$refs.text.innerHTML = this.$refs.text.innerHTML.replace(regex1, newItem)
       })
+      let textString = textArray.join('')
+      this.$refs.text.innerHTML = textString
     }
   },
   methods: {
-    getKeyByValue(object, value) {
-      return Object.keys(object).find(key => object[key] === value);
-    },
-    getCaretPosition(editableDiv) {
-      var sel = 0,
-          range;
-      if (window.getSelection) {
-        sel = window.getSelection();
-        if (sel.rangeCount) {
-          range = sel.getRangeAt(0);
-        }
-      } else if (document.selection && document.selection.createRange) {
-        range = document.selection.createRange();
-        if (range.parentElement() == editableDiv) {
-          var tempEl = document.createElement("span");
-          editableDiv.insertBefore(tempEl, editableDiv.firstChild);
-          var tempRange = range.duplicate();
-          tempRange.moveToElementText(tempEl);
-          tempRange.setEndPoint("EndToEnd", range);
-        }
-      }
-      this.dropDownCoordinates.left = this.$refs.text.offsetLeft + range.endOffset * 7
-      this.dropDownCoordinates.top = this.$refs.text.offsetTop + (this.$refs.text.children.length > 0 ? this.$refs.text.children.length * 25 : 25)
-    },
     placeCaretAtEnd(el) {
       el.focus();
       if (typeof window.getSelection != "undefined" && typeof document.createRange != "undefined") {
@@ -105,32 +85,55 @@ export default {
         textRange.select();
       }
     },
-    showSelect(evt) {
-      if (/{{\B/g.test(this.$refs.text.textContent) ) {
-        this.showMenu = true
+    keyPress(evt) {
+      if (/{{\B/g.test(this.$refs.text.innerHTML) ) {
         if (evt.key === "ArrowUp") {
-          this.placeCaretAtEnd(this.$refs.text)
           this.currentTargetId -= 1
           if (this.currentTargetId < 0) {
             this.currentTargetId = this.data.length - 1
           }
-        this.currentTarget = this.data[this.currentTargetId].el
-        }
+          this.currentTarget = this.data[this.currentTargetId].el
+          }
         if (evt.key === "ArrowDown") {
           this.currentTargetId += 1
           if (this.currentTargetId > this.data.length - 1) {
             this.currentTargetId = 0
           }
-        this.currentTarget = this.data[this.currentTargetId].el
-        }
+          this.currentTarget = this.data[this.currentTargetId].el
+          }
         if (evt.key === "Enter") {
           this.addText(this.data[this.currentTargetId].type, this.data[this.currentTargetId].el)
-        }      
+        }  
+      }
+    },
+    getSelectionTopLeft() {
+      var x = 0, y = 0;
+      if (window.getSelection && document.createRange
+      && typeof document.createRange().getBoundingClientRect != "undefined") {
+          var sel = window.getSelection();
+          if (sel.rangeCount > 0) {
+              var rect = sel.getRangeAt(0).getBoundingClientRect();
+              x = rect.left;
+              y = rect.top;
+          }
+      } else if (document.selection && document.selection.type != "Control") {
+          var textRange = document.selection.createRange();
+          x = textRange.boundingLeft;
+          y = textRange.boundingTop;
+      }
+      return { x: x, y: y };
+    },
+    showSelect() {
+      if (this.getSelectionTopLeft() !== undefined) {
+        this.dropDownCoordinates.left = this.getSelectionTopLeft().x
+        this.dropDownCoordinates.top = this.getSelectionTopLeft().y
+       }
+      if (/{{\B/g.test(this.$refs.text.innerHTML) ) {
+        this.$refs.menu.focus();
+        this.showMenu = true    
         } else {
         this.showMenu = false
       }
-
-      this.getCaretPosition(this.$refs.text)
     },
     submit() {
       window.localStorage.setItem('text', this.$refs.text.innerText)
@@ -161,7 +164,6 @@ export default {
   border-radius: 5px;
   padding: 5px;
   margin-bottom: 20px;
-  position: relative;
   width: 200px;
   min-height: 100px;
   text-align: left;
