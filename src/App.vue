@@ -10,6 +10,7 @@
          tabindex="0"
          v-show="showMenu"
          @keydown="keyPress($event)"
+         @keyup="keyUp($event)"
          class="item-list"
          :style="{'left': dropDownCoordinates.left + 'px', 'top': dropDownCoordinates.top + 20 + 'px'}"
          contenteditable="false">
@@ -50,7 +51,8 @@ export default {
   mounted () {
     if (window.localStorage.text) {
       this.$refs.text.innerText = window.localStorage.text
-      let regex = /({{[a-zA-Z0-9]+}}|{{\S*\s+\S+}})/
+
+      let regex = /({{[a-zA-Z0-9]+}}|{{[a-zA-Z0-9]+\s+[a-zA-Z0-9]+}})/
       let textArray = []
       textArray = this.$refs.text.innerHTML.split(regex)
       textArray.forEach((el, index) => {
@@ -71,12 +73,10 @@ export default {
       if (typeof window.getSelection != "undefined" && typeof document.createRange != "undefined") {
         var range = document.createRange();
         range.selectNodeContents(el);
-        range.collapse(false);
- 
+        range.collapse(false); 
         var sel = window.getSelection();
         sel.removeAllRanges();
         sel.addRange(range);
-
 
       } else if (typeof document.body.createTextRange != "undefined") {
         var textRange = document.body.createTextRange();
@@ -101,6 +101,10 @@ export default {
           }
           this.currentTarget = this.data[this.currentTargetId].el
           }
+      }
+    },
+    keyUp(evt) {
+      if (/{{\B/g.test(this.$refs.text.innerHTML) ) {
         if (evt.key === "Enter") {
           this.addText(this.data[this.currentTargetId].type, this.data[this.currentTargetId].el)
         }  
